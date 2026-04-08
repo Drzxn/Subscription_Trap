@@ -1,0 +1,50 @@
+[project]
+name = "subscription-trap-env"
+version = "1.0.0"
+description = "RL environment for detecting and managing hidden subscription traps using OpenEnv"
+authors = [{ name = "Darshan" }]
+readme = "README.md"
+requires-python = ">=3.10,<3.12"
+
+dependencies = [
+    "openenv-core>=0.2.0",
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.29.0",
+    "pydantic>=2.6.0",
+    "python-dotenv",
+    "openai"
+]
+
+# 🔥 ENTRYPOINT (MANDATORY)
+[project.scripts]
+server = "server.app:main"
+
+# 🔥 THIS FIXES YOUR DOCKER ERROR (CRITICAL)
+[tool.setuptools.packages.find]
+include = ["core", "server"]
+
+# Optional but strong signal
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "black",
+    "ruff"
+]
+
+# Build system
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+# Tooling
+[tool.black]
+line-length = 88
+target-version = ["py310"]
+
+[tool.ruff]
+line-length = 88
+select = ["E", "F", "I"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

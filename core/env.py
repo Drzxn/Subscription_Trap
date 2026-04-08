@@ -1,0 +1,115 @@
+from typing import List
+from core.models import Observation, Action, Reward
+from core.tasks import get_task
+from core.grader import evaluate_step
+
+
+class SubscriptionEnv:
+    def __init__(self, task_name: str = "hard"):
+        self.task_name = task_name
+        self.reset()
+
+    # 🔹 Reset environment
+    def reset(self):
+        self.task = get_task(self.task_name)
+
+        # Deep copy to avoid mutation bugs
+        self.state = [s.copy() for s in self.task.get("subscriptions", [])]
+
+        self.truth = self.task.get("ground_truth", [])
+        self.bank_logs = self.task.get("bank_logs", [])
+        self.email_logs = self.task.get("email_logs", [])
+
+        self.month = 0
+        self.budget = self.task.get("budget", 0)
+        self.action_count = 0
+        self.done = False
+
+        return self._get_obs()
+
+    # 🔹 Build observation
+    def _get_obs(self):
+        visible = [
+            s for s in self.state
+            if getattr(s, "active", False)
+            and (not getattr(s, "hidden", False) or self.month > 1)
+        ]
+
+        return Observation(
+            visible_subscriptions=visible,
+            bank_logs=self.bank_logs,
+            email_logs=self.email_logs,
+            month=self.month,
+            budget=self.budget,
+            action_count=self.action_count
+        )
+
+    # 🔹 Step function (core RL loop)
+    def step(self, action: Action):
+        # 🔒 If already finished → freeze
+        if self.done:
+            return (
+                self._get_obs(),
+                Reward(value=0.0, reason="episode_done"),
+                True,
+                {}
+            )
+
+        # Validate action safely
+        if not action or not hasattr(action, "subscription_id"):
+            return (
+                self._get_obs(),
+                Reward(value=-0.1, reason="invalid_action"),
+                False,
+                {}
+            )
+
+        # ⏩ Time progression
+        self.month += 1
+        self.action_count += 1
+
+        # 🎯 Apply action
+        for sub in self.state:
+            if getattr(sub, "id", None) == action.subscription_id:
+                if action.action_type == "cancel":
+                    sub.active = False
+
+                elif action.action_type == "snooze":
+                    if getattr(sub, "trial", False):
+                        sub.trial_remaining = getattr(
+                            sub, "trial_remaining", 0) + 1
+
+                elif action.action_type == "investigate":
+                    # reveal hidden subscription
+                    if getattr(sub, "hidden", False):
+                        sub.hidden = False
+
+        # 🔄 Update trials → convert to paid
+        for sub in self.state:
+            if getattr(sub, "trial", False):
+                sub.trial_remaining = getattr(sub, "trial_remaining", 0) - 1
+
+                if sub.trial_remaining <= 0:
+                    sub.trial = False
+
+        # 🧠 Compute reward (safe fallback)
+        try:
+            reward_value, reason = evaluate_step(
+                self.state,
+                self.truth,
+                self.budget,
+                self.action_count
+            )
+        except Exception:
+            reward_value, reason = -0.2, "grader_error"
+
+        # 🏁 Termination condition
+        if self.month >= 6:
+            self.done = True
+
+        return (
+            self._get_obs(),
+            Reward(value=float(reward_value), reason=str(reason)),
+            self.done,
+            {}
+        )
