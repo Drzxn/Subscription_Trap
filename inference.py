@@ -1,4 +1,4 @@
-from env import SubscriptionEnv
+from core.env import SubscriptionEnv
 
 
 def smart_policy(obs):
