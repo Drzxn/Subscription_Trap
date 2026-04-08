@@ -1,7 +1,19 @@
+---
+title: Subscription Trap Environment
+emoji: 🤖
+colorFrom: blue
+colorTo: purple
+sdk: docker
+app_file: app.py
+pinned: false
+---
+
 # Subscription Trap Escape Environment
 
 ## Overview
 Simulates subscription management with hidden costs.
+
+
 
 ## Observation Space
 - visible_subscriptions
