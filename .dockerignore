@@ -1,0 +1,59 @@
+# 🔹 Git
+.git
+.gitignore
+
+# 🔹 Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# 🔹 Virtual envs (VERY IMPORTANT)
+venv/
+.env/
+.venv/
+
+# 🔹 VS Code / IDE
+.vscode/
+.idea/
+
+# 🔹 OS files
+.DS_Store
+Thumbs.db
+
+# 🔹 Logs
+*.log
+
+# 🔹 Testing / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# 🔹 Jupyter
+.ipynb_checkpoints/
+
+# 🔹 Build artifacts
+build/
+dist/
+*.egg-info/
+
+# 🔹 Docker artifacts
+*.tar
+
+# 🔹 Hugging Face cache
+.cache/
+huggingface/
+
+# 🔹 Temporary files
+*.tmp
+*.bak
+*.old
+
+# 🔹 Secrets (CRITICAL)
+*.env
+*.pem
+*.key
+*.crt
+
+# 🔹 Local configs
+.python-version

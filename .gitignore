@@ -1,0 +1,65 @@
+# 🔹 Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 🔹 Virtual environments
+venv/
+.env/
+.venv/
+
+# 🔹 Environment variables
+.env
+.env.*
+
+# 🔹 VS Code / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 🔹 OS files
+.DS_Store
+Thumbs.db
+
+# 🔹 Logs
+*.log
+
+# 🔹 Build / distribution
+build/
+dist/
+*.egg-info/
+
+# 🔹 Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# 🔹 Jupyter
+.ipynb_checkpoints/
+
+# 🔹 Docker (optional but useful)
+*.tar
+
+# 🔹 Hugging Face cache
+.cache/
+huggingface/
+
+# 🔹 Temporary files
+*.tmp
+*.bak
+*.old
+
+# 🔹 Local databases (if any added later)
+*.sqlite3
+
+# 🔹 Secrets (CRITICAL)
+*.pem
+*.key
+*.crt
+
+# 🔹 Python version files
+.python-version
+
+# 🔹 Misc
+*.DS_Store?

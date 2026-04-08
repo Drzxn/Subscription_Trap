@@ -1,0 +1,10 @@
+name: subscription-trap-env
+description: Temporal subscription management RL environment with hidden states and multi-source reasoning
+version: 1.0.0
+
+entrypoint: app.py
+
+tasks:
+  - easy
+  - medium
+  - hard
