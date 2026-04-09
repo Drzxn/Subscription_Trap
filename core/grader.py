@@ -40,7 +40,7 @@ def evaluate_step(state, truth, budget, action_count):
     # 💰 Budget overflow (controlled scaling)
     if total_cost > budget:
         overflow = total_cost - budget
-        penalty = min(overflow / 300.0, 1.0)  # capped
+        penalty = min(overflow / 500.0, 0.8)  # capped
         penalty = round(penalty, 2)
         reward -= penalty
         reasons.append(f"budget overflow penalty {penalty}")
@@ -63,8 +63,8 @@ def evaluate_step(state, truth, budget, action_count):
         reasons.append("efficient decision bonus")
 
     # 🔥 SOFT FLOOR (CRITICAL — prevents always hitting -3)
-    if reward < -2.0:
-        reward = -2.0
+    if reward < -2.2:
+        reward = -2.2
 
     # 🔥 FINAL NORMALIZATION
     reward = round(reward, 2)
