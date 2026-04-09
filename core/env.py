@@ -16,7 +16,7 @@ class SubscriptionEnv:
         self.task = get_task(self.task_name)
 
         # ✅ Safe deep copy
-        self.state = deepcopy(self.task.get("subscriptions", []))
+        self.state = [s.copy() for s in self.task.get("subscriptions", [])]
 
         self.truth = self.task.get("ground_truth", [])
         self.bank_logs = self.task.get("bank_logs", [])
@@ -31,29 +31,28 @@ class SubscriptionEnv:
 
     # 🔹 Build observation
 
+    def _get_obs(self):
+        visible = []
 
-def _get_obs(self):
-    visible = []
+        for s in self.state:
+            # ✅ Correct access for Pydantic model
+            active = s.active
+            hidden = getattr(s, "hidden", False)
 
-    for s in self.state:
-        active = s.get("active", False)
-        hidden = s.get("hidden", False)
+            if active:
+                if not hidden:
+                    visible.append(s)
+                elif hidden and self.month >= 2:
+                    visible.append(s)
 
-        # ✅ Better reveal logic
-        if active:
-            if not hidden:
-                visible.append(s)
-            elif hidden and self.month >= 2:
-                visible.append(s)
-
-    return Observation(
-        visible_subscriptions=visible,
-        bank_logs=self.bank_logs,
-        email_logs=self.email_logs,
-        month=self.month,
-        budget=round(self.budget, 2),  # ✅ correct place to round
-        action_count=self.action_count
-    )
+        return Observation(
+            visible_subscriptions=visible,
+            bank_logs=self.bank_logs,
+            email_logs=self.email_logs,
+            month=self.month,
+            budget=round(self.budget, 2),
+            action_count=self.action_count
+        )
 
     # 🔹 Step function (core RL loop)
     def step(self, action: Action):
