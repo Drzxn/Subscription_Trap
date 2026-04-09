@@ -11,34 +11,30 @@ def choose_action(obs, step):
     if not subs:
         return None
 
-    # 🔥 STEP 0–1: exploration phase
+    # 🔥 STEP 0–1: DO NOTHING (avoid penalties)
     if step < 2:
-        for s in subs:
-            if getattr(s, "hidden", False):
-                return Action(action_type="investigate", subscription_id=s.id)
+        return Action(
+            action_type="keep",
+            subscription_id=subs[0].id
+        )
 
-        # fallback: investigate first visible
-        return Action(action_type="investigate", subscription_id=subs[0].id)
+    # 🔥 STEP 2+: careful decisions
 
-    # 🔥 AFTER exploration: decision phase
+    # cancel only trials first (safe)
+    for s in subs:
+        if getattr(s, "trial", False):
+            return Action(action_type="cancel", subscription_id=s.id)
 
-    # prioritize dangerous subs
-    target = sorted(
-        subs,
-        key=lambda s: (getattr(s, "hidden", False), s.trial, s.cost),
-        reverse=True
-    )[0]
+    # cancel very expensive only
+    for s in subs:
+        if s.cost > 1200:
+            return Action(action_type="cancel", subscription_id=s.id)
 
-    if getattr(target, "hidden", False):
-        return Action(action_type="investigate", subscription_id=target.id)
-
-    if target.trial:
-        return Action(action_type="cancel", subscription_id=target.id)
-
-    if target.cost > 800:   # 🔥 tuned threshold
-        return Action(action_type="cancel", subscription_id=target.id)
-
-    return Action(action_type="keep", subscription_id=target.id)
+    # otherwise keep
+    return Action(
+        action_type="keep",
+        subscription_id=subs[0].id
+    )
 
 
 def run_baseline():
@@ -61,8 +57,10 @@ def run_baseline():
         if done:
             break
 
-    # 🔥 normalize
+    # 🔥 NORMALIZE
     score = total_reward / MAX_TOTAL_REWARD
+
+    # clamp to [0,1]
     score = max(min(score, 1.0), 0.0)
 
     return round(score, 4)
