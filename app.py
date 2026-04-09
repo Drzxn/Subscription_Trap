@@ -1,9 +1,9 @@
 from fastapi import FastAPI, HTTPException
 from typing import Any
 
-from env import SubscriptionEnv
-from baseline import run_baseline
-from models import Action
+from core.env import SubscriptionEnv
+from core.baseline import run_baseline
+from core.models import Action
 
 app = FastAPI(
     title="Subscription Trap OpenEnv",
