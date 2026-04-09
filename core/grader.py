@@ -42,7 +42,7 @@ def evaluate_step(state, truth, budget, action_count):
 
         # ❌ Missed hidden trap (REDUCED PENALTY)
         if sub.hidden and sub.active and not sub.trial:
-            reward -= 0.4
+            reward -= 0.3   # ✅ FIXED (was too harsh before)
             wrong_actions += 1
             reasons.append(f"missed hidden trap {sub.id}")
 
@@ -52,10 +52,10 @@ def evaluate_step(state, truth, budget, action_count):
             wrong_actions += 1
             reasons.append(f"wrongly cancelled {sub.id}")
 
-    # 💰 Budget overflow penalty (CONTROLLED)
+    # 💰 Budget overflow penalty (controlled)
     if total_cost > budget:
         overflow = total_cost - budget
-        penalty = min(overflow / 800.0, 0.5)
+        penalty = min(overflow / 800.0, 0.5)  # softer scaling
         penalty = round(penalty, 2)
 
         reward -= penalty
@@ -67,9 +67,9 @@ def evaluate_step(state, truth, budget, action_count):
         reward -= penalty
         reasons.append(f"action spam penalty {penalty}")
 
-    # ⚠️ Too many active subscriptions (slightly reduced)
+    # ⚠️ Too many active subscriptions
     if active_subs > 2:
-        penalty = round(0.12 * active_subs, 2)
+        penalty = round(0.15 * active_subs, 2)
         reward -= penalty
         reasons.append(f"too many active subs penalty {penalty}")
 
@@ -78,16 +78,11 @@ def evaluate_step(state, truth, budget, action_count):
         reward += 0.3
         reasons.append("efficient decision bonus")
 
-    # 🔥 NEW: SAFE BEHAVIOR BONUS (VERY IMPORTANT)
-    if wrong_actions == 0 and active_subs <= 2:
-        reward += 0.2
-        reasons.append("safe state bonus")
+    # 🔥 Soft floor (prevents collapse)
+    if reward < -2.0:
+        reward = -2.0
 
-    # 🔥 SOFT FLOOR (prevents collapse)
-    if reward < -1.8:
-        reward = -1.8
-
-    # 🔥 FINAL NORMALIZATION
+    # 🔥 Final normalization
     reward = round(reward, 2)
     reward = max(min(reward, 2.0), -3.0)
 

@@ -110,7 +110,7 @@ class SubscriptionEnv:
         )
 
         # 🔥 CRITICAL FIX (prevents reward collapse)
-        self.budget = max(self.budget - (monthly_cost * 0.2), 0)
+        self.budget = max(self.budget - (monthly_cost * 0.1), 0)
         # 🧠 Reward calculation
         try:
             reward_value, reason = evaluate_step(
