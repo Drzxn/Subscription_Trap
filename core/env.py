@@ -2,6 +2,7 @@ from typing import List
 from core.models import Observation, Action, Reward
 from core.tasks import get_task
 from core.grader import evaluate_step
+from copy import deepcopy
 
 
 class SubscriptionEnv:
@@ -10,39 +11,49 @@ class SubscriptionEnv:
         self.reset()
 
     # 🔹 Reset environment
+
     def reset(self):
         self.task = get_task(self.task_name)
 
-        # Deep copy to avoid mutation bugs
-        self.state = [s.copy() for s in self.task.get("subscriptions", [])]
+        # ✅ Safe deep copy
+        self.state = deepcopy(self.task.get("subscriptions", []))
 
         self.truth = self.task.get("ground_truth", [])
         self.bank_logs = self.task.get("bank_logs", [])
         self.email_logs = self.task.get("email_logs", [])
 
         self.month = 0
-        self.budget = round(1499.4, 2)
+        self.budget = 1499.4
         self.action_count = 0
         self.done = False
 
         return self._get_obs()
 
     # 🔹 Build observation
-    def _get_obs(self):
-        visible = [
-            s for s in self.state
-            if getattr(s, "active", False)
-            and (not getattr(s, "hidden", False) or self.month > 1)
-        ]
 
-        return Observation(
-            visible_subscriptions=visible,
-            bank_logs=self.bank_logs,
-            email_logs=self.email_logs,
-            month=self.month,
-            budget=round(self.budget, 2),
-            action_count=self.action_count
-        )
+
+def _get_obs(self):
+    visible = []
+
+    for s in self.state:
+        active = s.get("active", False)
+        hidden = s.get("hidden", False)
+
+        # ✅ Better reveal logic
+        if active:
+            if not hidden:
+                visible.append(s)
+            elif hidden and self.month >= 2:
+                visible.append(s)
+
+    return Observation(
+        visible_subscriptions=visible,
+        bank_logs=self.bank_logs,
+        email_logs=self.email_logs,
+        month=self.month,
+        budget=round(self.budget, 2),  # ✅ correct place to round
+        action_count=self.action_count
+    )
 
     # 🔹 Step function (core RL loop)
     def step(self, action: Action):
