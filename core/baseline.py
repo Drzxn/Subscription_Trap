@@ -5,33 +5,35 @@ MAX_STEPS = 6
 MAX_TOTAL_REWARD = 12.0  # 6 steps × max ~2 reward
 
 
-def choose_action(obs):
-    """
-    Simple rule-based policy:
-    - cancel high-cost subscriptions
-    - cancel trials
-    - otherwise keep
-    """
+def choose_action(obs, step):
+    subs = obs.visible_subscriptions
 
-    if not obs.visible_subscriptions:
+    if not subs:
         return None
 
-    # pick the most expensive or risky subscription
+    # 🔥 Step-based strategy
+    if step == 0:
+        # investigate first (critical for hidden traps)
+        target = subs[0]
+        return Action(action_type="investigate", subscription_id=target.id)
+
+    # prioritize risky subscriptions
     target = sorted(
-        obs.visible_subscriptions,
-        key=lambda s: (s.trial, s.cost),
+        subs,
+        key=lambda s: (s.hidden, s.trial, s.cost),
         reverse=True
     )[0]
 
-    if target.trial or target.cost > 1000:
-        action_type = "cancel"
-    else:
-        action_type = "keep"
+    if target.hidden:
+        return Action(action_type="investigate", subscription_id=target.id)
 
-    return Action(
-        action_type=action_type,
-        subscription_id=target.id
-    )
+    if target.trial:
+        return Action(action_type="cancel", subscription_id=target.id)
+
+    if target.cost > 1000:
+        return Action(action_type="cancel", subscription_id=target.id)
+
+    return Action(action_type="keep", subscription_id=target.id)
 
 
 def run_baseline():
