@@ -1,65 +1,82 @@
+import os
+from openai import OpenAI
+
 from core.env import SubscriptionEnv
+from core.models import Action
+
+# 🔹 Required environment variables
+API_BASE_URL = os.getenv(
+    "API_BASE_URL", "https://dzrxn-subscription-trap.hf.space")
+MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4o-mini")
+
+# ❗ DO NOT set default
+HF_TOKEN = os.getenv("HF_TOKEN")
+
+# Optional
+LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
+
+# 🔹 OpenAI client (required structure)
+client = OpenAI(base_url=API_BASE_URL)
 
 
 def smart_policy(obs):
     """
-    Intelligent decision-making policy
+    Simple rule-based policy
     """
 
-    # 🔍 Look for hidden or suspicious subscriptions
+    # Cancel expensive subscriptions
     for sub in obs.visible_subscriptions:
-        # Cancel expensive subscriptions over budget
         if sub.cost > obs.budget:
-            return {
-                "action_type": "cancel",
-                "subscription_id": sub.id
-            }
+            return Action(
+                action_type="cancel",
+                subscription_id=sub.id
+            )
 
-    # 🔍 Look for trial traps via email clues
+    # Detect hidden trial from email
     for email in obs.email_logs:
-        if "trial ends soon" in email["content"].lower():
-            # Try to cancel hidden trial
-            return {
-                "action_type": "cancel",
-                "subscription_id": "hidden_trial"
-            }
+        if "trial" in email["content"].lower():
+            return Action(
+                action_type="cancel",
+                subscription_id="hidden_trial"
+            )
 
-    # Default: do nothing harmful
-    return {
-        "action_type": "keep",
-        "subscription_id": "gym"
-    }
+    # Default safe action
+    return Action(
+        action_type="keep",
+        subscription_id=obs.visible_subscriptions[0].id
+        if obs.visible_subscriptions else "gym"
+    )
 
 
 def run_inference():
+    print("STARTUP: Initializing agent")
+
     env = SubscriptionEnv()
-
     obs = env.reset()
-    total_reward = 0
-    steps = 0
 
-    print("\n🚀 Starting Inference Run\n")
+    total_reward = 0.0
+    step_count = 0
 
     while True:
         action = smart_policy(obs)
 
-        obs, reward, done, _ = env.step(type("A", (), action))
+        obs, reward, done, _ = env.step(action)
 
-        total_reward += reward.value
-        steps += 1
+        reward_value = getattr(reward, "value", 0.0)
+        total_reward += reward_value
+        step_count += 1
 
-        print(f"Step {steps}")
-        print(f"Action: {action}")
-        print(f"Reward: {reward.value} | Reason: {reward.reason}")
-        print(f"Month: {obs.month}")
-        print("-" * 40)
+        print(
+            f"STEP: step={step_count}, action={action.action_type}, "
+            f"sub={action.subscription_id}, reward={reward_value}"
+        )
 
         if done:
             break
 
-    print("\n✅ Inference Completed")
-    print(f"Total Steps: {steps}")
-    print(f"Final Score: {total_reward}\n")
+    print(
+        f"END: total_steps={step_count}, total_reward={round(total_reward, 2)}"
+    )
 
     return total_reward
 
