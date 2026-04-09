@@ -55,7 +55,7 @@ def evaluate_step(state, truth, budget, action_count):
     # 💰 Budget overflow penalty (CONTROLLED)
     if total_cost > budget:
         overflow = total_cost - budget
-        penalty = min(overflow / 500.0, 0.8)
+        penalty = min(overflow / 800.0, 0.5)
         penalty = round(penalty, 2)
 
         reward -= penalty
