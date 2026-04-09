@@ -1,8 +1,9 @@
 from typing import List
+from copy import deepcopy
+
 from core.models import Observation, Action, Reward
 from core.tasks import get_task
 from core.grader import evaluate_step
-from copy import deepcopy
 
 
 class SubscriptionEnv:
@@ -11,14 +12,13 @@ class SubscriptionEnv:
         self.reset()
 
     # 🔹 Reset environment
-
     def reset(self):
         self.task = get_task(self.task_name)
 
-        # ✅ Safe deep copy
-        self.state = [s.copy() for s in self.task.get("subscriptions", [])]
+        # ✅ Safe deep copy (works for Pydantic + dict)
+        self.state = deepcopy(self.task.get("subscriptions", []))
 
-        self.truth = self.task.get("ground_truth", [])
+        self.truth = self.task.get("ground_truth", {})
         self.bank_logs = self.task.get("bank_logs", [])
         self.email_logs = self.task.get("email_logs", [])
 
@@ -30,20 +30,11 @@ class SubscriptionEnv:
         return self._get_obs()
 
     # 🔹 Build observation
-
     def _get_obs(self):
-        visible = []
-
-        for s in self.state:
-            # ✅ Correct access for Pydantic model
-            active = s.active
-            hidden = getattr(s, "hidden", False)
-
-            if active:
-                if not hidden:
-                    visible.append(s)
-                elif hidden and self.month >= 2:
-                    visible.append(s)
+        visible = [
+            s for s in self.state
+            if s.active and (not getattr(s, "hidden", False) or self.month >= 2)
+        ]
 
         return Observation(
             visible_subscriptions=visible,
@@ -56,7 +47,8 @@ class SubscriptionEnv:
 
     # 🔹 Step function (core RL loop)
     def step(self, action: Action):
-        # 🔒 If already finished → freeze
+
+        # 🔒 Freeze if done
         if self.done:
             return (
                 self._get_obs(),
@@ -65,11 +57,19 @@ class SubscriptionEnv:
                 {}
             )
 
-        # Validate action safely
+        # ❌ Invalid action handling
         if not action or not hasattr(action, "subscription_id"):
             return (
                 self._get_obs(),
                 Reward(value=-0.1, reason="invalid_action"),
+                False,
+                {}
+            )
+
+        if action.action_type not in ["cancel", "keep", "snooze", "investigate"]:
+            return (
+                self._get_obs(),
+                Reward(value=-0.1, reason="invalid_action_type"),
                 False,
                 {}
             )
@@ -80,29 +80,37 @@ class SubscriptionEnv:
 
         # 🎯 Apply action
         for sub in self.state:
-            if getattr(sub, "id", None) == action.subscription_id:
+            if sub.id == action.subscription_id:
+
                 if action.action_type == "cancel":
                     sub.active = False
 
                 elif action.action_type == "snooze":
                     if getattr(sub, "trial", False):
-                        sub.trial_remaining = getattr(
-                            sub, "trial_remaining", 0) + 1
+                        sub.trial_remaining += 1
 
                 elif action.action_type == "investigate":
-                    # reveal hidden subscription
                     if getattr(sub, "hidden", False):
                         sub.hidden = False
 
-        # 🔄 Update trials → convert to paid
+                elif action.action_type == "keep":
+                    pass  # explicit no-op
+
+        # 🔄 Trial progression
         for sub in self.state:
             if getattr(sub, "trial", False):
-                sub.trial_remaining = getattr(sub, "trial_remaining", 0) - 1
+                sub.trial_remaining -= 1
 
                 if sub.trial_remaining <= 0:
                     sub.trial = False
 
-        # 🧠 Compute reward (safe fallback)
+        # 💰 Update budget (REALISM FIX)
+        monthly_cost = sum(
+            s.cost for s in self.state if s.active and not s.trial
+        )
+        self.budget -= monthly_cost
+
+        # 🧠 Reward calculation
         try:
             reward_value, reason = evaluate_step(
                 self.state,
@@ -113,13 +121,22 @@ class SubscriptionEnv:
         except Exception:
             reward_value, reason = -0.2, "grader_error"
 
-        # 🏁 Termination condition
+        # 🏁 Termination
         if self.month >= 6:
             self.done = True
 
+        # 📊 Info (useful for debugging + evaluation)
+        info = {
+            "month": self.month,
+            "budget": round(self.budget, 2),
+            "active_subscriptions": [
+                s.id for s in self.state if s.active
+            ]
+        }
+
         return (
             self._get_obs(),
-            Reward(value=float(reward_value), reason=str(reason)),
+            Reward(value=float(round(reward_value, 2)), reason=str(reason)),
             self.done,
-            {}
+            info
         )

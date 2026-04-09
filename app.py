@@ -20,10 +20,10 @@ def serialize(obj: Any):
     if obj is None:
         return None
 
-    if hasattr(obj, "model_dump"):
+    if hasattr(obj, "model_dump"):  # Pydantic v2
         return obj.model_dump()
 
-    if hasattr(obj, "dict"):
+    if hasattr(obj, "dict"):  # fallback
         return obj.dict()
 
     if isinstance(obj, (list, tuple)):
@@ -35,7 +35,7 @@ def serialize(obj: Any):
     return obj
 
 
-# 🔹 Health check (HF uses this sometimes)
+# 🔹 Health check
 @app.get("/health")
 def health():
     return {"status": "ok"}
@@ -55,6 +55,7 @@ def root():
 def reset():
     try:
         obs = env.reset()
+
         return {
             "observation": serialize(obs),
             "reward": {"value": 0.0, "reason": "reset"},
@@ -65,6 +66,7 @@ def reset():
                 "note": "some subscriptions may be hidden"
             }
         }
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -75,15 +77,19 @@ def step(action: Action):
     try:
         obs, reward, done, info = env.step(action)
 
+        reward_value = getattr(reward, "value", reward or 0.0)
+        reward_reason = getattr(reward, "reason", "")
+
         return {
             "observation": serialize(obs),
             "reward": {
-                "value": float(getattr(reward, "value", reward or 0.0)),
-                "reason": getattr(reward, "reason", "")
+                "value": round(float(reward_value), 2),  # ✅ FIXED
+                "reason": reward_reason
             },
             "done": bool(done),
             "info": serialize(info)
         }
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -92,7 +98,10 @@ def step(action: Action):
 @app.get("/state")
 def state():
     try:
-        return {"state": serialize(env.state())}
+        return {
+            "state": serialize(env.state)  # ✅ FIXED
+        }
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -102,22 +111,23 @@ def state():
 def baseline():
     try:
         score = run_baseline()
+
         return {
-            "baseline_score": float(score),
+            "baseline_score": round(float(score), 4),
             "range": "0.0 - 1.0"
         }
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# 🔹 Grader
+# 🔹 Grader snapshot
 @app.get("/grader")
 def grader():
     try:
-        state = env.state()
-        subs = state.get("subscriptions", [])
+        subs = env.state or []
 
-        active = [s["id"] for s in subs if s.get("active")]
+        active = [s.id for s in subs if getattr(s, "active", False)]
 
         total = len(subs) if subs else 1
 
@@ -126,6 +136,7 @@ def grader():
             "total_active": len(active),
             "score_hint": round(1.0 - (len(active) / total), 4)
         }
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -135,12 +146,24 @@ def grader():
 def tasks():
     return {
         "tasks": [
-            {"name": "easy", "difficulty": 1},
-            {"name": "medium", "difficulty": 2},
-            {"name": "hard", "difficulty": 3}
+            {
+                "name": "easy",
+                "description": "Basic subscriptions with no hidden traps",
+                "difficulty": 1
+            },
+            {
+                "name": "medium",
+                "description": "Trial subscriptions with delayed cost",
+                "difficulty": 2
+            },
+            {
+                "name": "hard",
+                "description": "Hidden subscriptions and misleading signals",
+                "difficulty": 3
+            }
         ],
         "action_schema": {
-            "action_type": ["cancel", "keep", "snooze"],
+            "action_type": ["cancel", "keep", "snooze", "investigate"],
             "subscription_id": "string"
         }
     }

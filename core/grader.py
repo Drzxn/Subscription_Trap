@@ -5,53 +5,67 @@ def evaluate_step(state, truth, budget, action_count):
     active_subs = 0
     correct_actions = 0
     wrong_actions = 0
+    reasons = []
 
     for sub in state:
-        # Safe lookup (prevents crash)
         correct = truth.get(sub.id)
 
-        # Skip if unknown (safety)
+        # Skip unknown safely
         if correct is None:
             continue
 
-        # Calculate cost
+        # 💰 Cost calculation
         if sub.active and not sub.trial:
             total_cost += sub.cost
             active_subs += 1
 
-        # ✅ Correct decision
+        # ✅ Correct cancel
         if not sub.active and correct == "cancel":
             reward += 0.6
             correct_actions += 1
+            reasons.append(f"correctly cancelled {sub.id}")
 
-        # ❌ Missed hidden trap (VERY IMPORTANT)
+        # ❌ Missed hidden trap
         if sub.hidden and sub.active and not sub.trial:
-            reward -= 1.2
+            reward -= 1.0
             wrong_actions += 1
+            reasons.append(f"missed hidden trap {sub.id}")
 
         # ❌ Unnecessary cancel
         if not sub.active and correct == "keep":
-            reward -= 0.6
+            reward -= 0.5
             wrong_actions += 1
+            reasons.append(f"wrongly cancelled {sub.id}")
 
-    # 💰 Budget penalty (scaled)
+    # 💰 Budget overflow penalty (scaled)
     if total_cost > budget:
         overflow = total_cost - budget
-        reward -= overflow / 100.0
+        penalty = round(overflow / 100.0, 2)
+        reward -= penalty
+        reasons.append(f"budget overflow penalty {penalty}")
 
-    # ⚠️ Action spam penalty (smarter)
+    # ⚠️ Action spam penalty
     if action_count > 3:
-        reward -= (action_count - 3) * 0.1
+        penalty = round((action_count - 3) * 0.1, 2)
+        reward -= penalty
+        reasons.append(f"action spam penalty {penalty}")
 
-    # ⚠️ Too many active subscriptions penalty
+    # ⚠️ Too many active subscriptions
     if active_subs > 2:
-        reward -= 0.2 * active_subs
+        penalty = round(0.2 * active_subs, 2)
+        reward -= penalty
+        reasons.append(f"too many active subs penalty {penalty}")
 
-    # 🎯 Small bonus for efficiency
+    # 🎯 Efficiency bonus
     if correct_actions > 0 and wrong_actions == 0:
         reward += 0.3
+        reasons.append("efficient decision bonus")
 
-    # 🧱 Clamp reward (important for stability)
+    # 🔥 FINAL CLEANUP (CRITICAL)
+    reward = round(reward, 2)
     reward = max(min(reward, 2.0), -3.0)
 
-    return reward, "final_evaluation"
+    # 🧠 Better explanation
+    reason = ", ".join(reasons) if reasons else "neutral step"
+
+    return reward, reason
