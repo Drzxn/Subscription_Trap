@@ -36,13 +36,13 @@ def evaluate_step(state, truth, budget, action_count):
 
         # ✅ Correct cancel
         if not sub.active and correct == "cancel":
-            reward += 0.6
+            reward += 0.8
             correct_actions += 1
             reasons.append(f"correctly cancelled {sub.id}")
 
         # ❌ Missed hidden trap (REDUCED PENALTY)
         if sub.hidden and sub.active and not sub.trial:
-            reward -= 0.3   # ✅ FIXED (was too harsh before)
+            reward -= 0.25   # ✅ FIXED (was too harsh before)
             wrong_actions += 1
             reasons.append(f"missed hidden trap {sub.id}")
 

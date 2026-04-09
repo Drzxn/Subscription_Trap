@@ -10,17 +10,19 @@ def choose_action(obs, step):
     if not subs:
         return None
 
+    # Step 1: investigate early
+    if step == 0:
+        for sub in subs:
+            if getattr(sub, "hidden", False):
+                return Action("investigate", sub.id)
+
     for sub in subs:
-        # reveal hidden early
-        if getattr(sub, "hidden", False) and step < 2:
-            return Action(action_type="investigate", subscription_id=sub.id)
+        # cancel expensive or risky
+        if sub.cost > 800 or getattr(sub, "trial", False):
+            return Action("cancel", sub.id)
 
-        # cancel expensive or trial subs
-        if sub.cost > 1000 or getattr(sub, "trial", False):
-            return Action(action_type="cancel", subscription_id=sub.id)
-
-    # default: keep cheapest
-    return Action(action_type="keep", subscription_id=subs[0].id)
+    # otherwise keep cheapest
+    return Action("keep", subs[0].id)
 
 
 def run_baseline():
