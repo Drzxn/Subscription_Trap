@@ -40,7 +40,7 @@ class SubscriptionEnv:
             bank_logs=self.bank_logs,
             email_logs=self.email_logs,
             month=self.month,
-            budget=self.budget,
+            budget=round(self.budget, 2),
             action_count=self.action_count
         )
 
