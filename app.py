@@ -59,7 +59,11 @@ def reset():
             "observation": serialize(obs),
             "reward": {"value": 0.0, "reason": "reset"},
             "done": False,
-            "info": {}
+            "info": {
+                "message": "environment reset",
+                "month": 0,
+                "note": "some subscriptions may be hidden"
+            }
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
