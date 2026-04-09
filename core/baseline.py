@@ -10,26 +10,34 @@ def choose_action(obs, step):
     if not subs:
         return None
 
-    # Step 1: investigate early
+    # 🔍 Investigate hidden early
     if step == 0:
         for sub in subs:
             if getattr(sub, "hidden", False):
-                return Action("investigate", sub.id)
+                return Action(
+                    action_type="investigate",
+                    subscription_id=sub.id
+                )
 
     for sub in subs:
-        # cancel expensive or risky
+        # ❌ Cancel expensive or risky
         if sub.cost > 800 or getattr(sub, "trial", False):
-            return Action("cancel", sub.id)
+            return Action(
+                action_type="cancel",
+                subscription_id=sub.id
+            )
 
-    # otherwise keep cheapest
-    return Action("keep", subs[0].id)
+    # ✅ Default: keep cheapest
+    return Action(
+        action_type="keep",
+        subscription_id=subs[0].id
+    )
 
 
 def run_baseline():
     env = SubscriptionEnv("hard")
 
     obs = env.reset()
-
     total_reward = 0.0
 
     for step in range(MAX_STEPS):
@@ -49,7 +57,7 @@ def run_baseline():
     # 🔥 FINAL NORMALIZATION (FIXED RANGE)
     score = (total_reward + 8.0) / 16.0
 
-    # clamp
+    # clamp to [0, 1]
     score = max(min(score, 1.0), 0.0)
 
     return round(score, 4)
