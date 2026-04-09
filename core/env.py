@@ -21,6 +21,8 @@ class SubscriptionEnv:
         self.email_logs = self.task.get("email_logs", [])
 
         self.month = 0
+        self.budget = 1499.4
+
         self.budget = round(self.budget, 2)
         self.action_count = 0
         self.done = False
