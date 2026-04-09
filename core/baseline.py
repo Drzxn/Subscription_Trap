@@ -43,10 +43,8 @@ def run_baseline():
     total_reward = 0.0
 
     for step in range(MAX_STEPS):
+        action = choose_action(obs, step)
 
-        action = choose_action(obs)
-
-        # fallback safety
         if action is None:
             break
 
