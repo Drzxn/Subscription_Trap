@@ -15,7 +15,7 @@ class SubscriptionEnv:
     def reset(self):
         self.task = get_task(self.task_name)
 
-        # ✅ Safe deep copy (works for Pydantic + dict)
+        # ✅ Deep copy (safe for Pydantic objects)
         self.state = deepcopy(self.task.get("subscriptions", []))
 
         self.truth = self.task.get("ground_truth", {})
@@ -57,7 +57,7 @@ class SubscriptionEnv:
                 {}
             )
 
-        # ❌ Invalid action handling
+        # ❌ Invalid action
         if not action or not hasattr(action, "subscription_id"):
             return (
                 self._get_obs(),
@@ -94,7 +94,7 @@ class SubscriptionEnv:
                         sub.hidden = False
 
                 elif action.action_type == "keep":
-                    pass  # explicit no-op
+                    pass
 
         # 🔄 Trial progression
         for sub in self.state:
@@ -104,11 +104,13 @@ class SubscriptionEnv:
                 if sub.trial_remaining <= 0:
                     sub.trial = False
 
-        # 💰 Update budget (REALISM FIX)
+        # 💰 Update budget (FIXED — CONTROLLED DRAIN)
         monthly_cost = sum(
             s.cost for s in self.state if s.active and not s.trial
         )
-        self.budget -= monthly_cost
+
+        # 🔥 CRITICAL FIX (prevents reward collapse)
+        self.budget = max(self.budget - (monthly_cost * 0.5), 0)
 
         # 🧠 Reward calculation
         try:

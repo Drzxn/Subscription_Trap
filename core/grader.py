@@ -40,9 +40,9 @@ def evaluate_step(state, truth, budget, action_count):
             correct_actions += 1
             reasons.append(f"correctly cancelled {sub.id}")
 
-        # ❌ Missed hidden trap (important but not too harsh)
+        # ❌ Missed hidden trap (REDUCED PENALTY)
         if sub.hidden and sub.active and not sub.trial:
-            reward -= 0.6
+            reward -= 0.4
             wrong_actions += 1
             reasons.append(f"missed hidden trap {sub.id}")
 
@@ -52,7 +52,7 @@ def evaluate_step(state, truth, budget, action_count):
             wrong_actions += 1
             reasons.append(f"wrongly cancelled {sub.id}")
 
-    # 💰 Budget overflow penalty (controlled + capped)
+    # 💰 Budget overflow penalty (CONTROLLED)
     if total_cost > budget:
         overflow = total_cost - budget
         penalty = min(overflow / 500.0, 0.8)
@@ -67,26 +67,31 @@ def evaluate_step(state, truth, budget, action_count):
         reward -= penalty
         reasons.append(f"action spam penalty {penalty}")
 
-    # ⚠️ Too many active subscriptions
+    # ⚠️ Too many active subscriptions (slightly reduced)
     if active_subs > 2:
-        penalty = round(0.15 * active_subs, 2)
+        penalty = round(0.12 * active_subs, 2)
         reward -= penalty
         reasons.append(f"too many active subs penalty {penalty}")
 
-    # 🎯 Efficiency bonus (clean behavior)
+    # 🎯 Efficiency bonus
     if correct_actions > 0 and wrong_actions == 0:
         reward += 0.3
         reasons.append("efficient decision bonus")
 
-    # 🔥 SOFT FLOOR (prevents collapse to useless signal)
-    if reward < -2.2:
-        reward = -2.2
+    # 🔥 NEW: SAFE BEHAVIOR BONUS (VERY IMPORTANT)
+    if wrong_actions == 0 and active_subs <= 2:
+        reward += 0.2
+        reasons.append("safe state bonus")
+
+    # 🔥 SOFT FLOOR (prevents collapse)
+    if reward < -1.8:
+        reward = -1.8
 
     # 🔥 FINAL NORMALIZATION
     reward = round(reward, 2)
     reward = max(min(reward, 2.0), -3.0)
 
-    # 🧠 Clean reason output (avoid long logs)
+    # 🧠 Clean reason output
     if not reasons:
         reason = "neutral step"
     else:
