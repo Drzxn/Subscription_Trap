@@ -2,7 +2,7 @@ from core.env import SubscriptionEnv
 from core.models import Action
 
 MAX_STEPS = 6
-MAX_TOTAL_REWARD = 12.0  # 6 steps × max ~2 reward
+MAX_TOTAL_REWARD = 12.0
 
 
 def choose_action(obs, step):
@@ -11,26 +11,31 @@ def choose_action(obs, step):
     if not subs:
         return None
 
-    # 🔥 Step-based strategy
-    if step == 0:
-        # investigate first (critical for hidden traps)
-        target = subs[0]
-        return Action(action_type="investigate", subscription_id=target.id)
+    # 🔥 STEP 0–1: exploration phase
+    if step < 2:
+        for s in subs:
+            if getattr(s, "hidden", False):
+                return Action(action_type="investigate", subscription_id=s.id)
 
-    # prioritize risky subscriptions
+        # fallback: investigate first visible
+        return Action(action_type="investigate", subscription_id=subs[0].id)
+
+    # 🔥 AFTER exploration: decision phase
+
+    # prioritize dangerous subs
     target = sorted(
         subs,
-        key=lambda s: (s.hidden, s.trial, s.cost),
+        key=lambda s: (getattr(s, "hidden", False), s.trial, s.cost),
         reverse=True
     )[0]
 
-    if target.hidden:
+    if getattr(target, "hidden", False):
         return Action(action_type="investigate", subscription_id=target.id)
 
     if target.trial:
         return Action(action_type="cancel", subscription_id=target.id)
 
-    if target.cost > 1000:
+    if target.cost > 800:   # 🔥 tuned threshold
         return Action(action_type="cancel", subscription_id=target.id)
 
     return Action(action_type="keep", subscription_id=target.id)
@@ -56,10 +61,8 @@ def run_baseline():
         if done:
             break
 
-    # 🔥 NORMALIZATION (CRITICAL)
+    # 🔥 normalize
     score = total_reward / MAX_TOTAL_REWARD
-
-    # clamp to [0,1]
     score = max(min(score, 1.0), 0.0)
 
     return round(score, 4)
