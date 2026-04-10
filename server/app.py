@@ -52,7 +52,11 @@ def reset(task: str = "easy"):
     try:
         global env
 
-        # ✅ MULTI-TASK SWITCHING (VERY IMPORTANT)
+        # 🔥 VALIDATE TASK NAME (CRITICAL)
+        if task not in ["easy", "medium", "hard"]:
+            raise HTTPException(status_code=400, detail="invalid_task")
+
+        # 🔥 FORCE NEW ENV
         env = SubscriptionEnv(task)
 
         obs = env.reset()
@@ -63,7 +67,7 @@ def reset(task: str = "easy"):
             "done": False,
             "info": {
                 "task": task,
-                "month": 0
+                "available_tasks": ["easy", "medium", "hard"]
             }
         }
 
@@ -130,18 +134,32 @@ def grader():
 def tasks():
     return {
         "tasks": [
-            {"name": "easy", "difficulty": 1},
-            {"name": "medium", "difficulty": 2},
-            {"name": "hard", "difficulty": 3}
+            {
+                "name": "easy",
+                "description": "basic subscriptions",
+                "difficulty": 1
+            },
+            {
+                "name": "medium",
+                "description": "trial traps",
+                "difficulty": 2
+            },
+            {
+                "name": "hard",
+                "description": "hidden traps",
+                "difficulty": 3
+            }
         ],
+        "default_task": "easy",
         "action_schema": {
             "action_type": ["cancel", "keep", "snooze", "investigate"],
             "subscription_id": "string"
         }
     }
 
-
 # 🔥 REQUIRED FOR DOCKER VALIDATOR
+
+
 def main():
     import uvicorn
     uvicorn.run("server.app:app", host="0.0.0.0", port=7860)
