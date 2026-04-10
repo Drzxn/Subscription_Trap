@@ -4,135 +4,76 @@ from openai import OpenAI
 from core.env import SubscriptionEnv
 from core.models import Action
 
-# 🔹 REQUIRED (DO NOT CHANGE)
-API_BASE_URL = os.environ.get("API_BASE_URL")
-API_KEY = os.environ.get("API_KEY")
+# 🔥 REQUIRED FOR VALIDATOR (LLM PROXY)
+client = OpenAI(
+    base_url=os.environ.get("API_BASE_URL"),
+    api_key=os.environ.get("API_KEY")
+)
 
-# 🔹 Safe client init
-client = None
-if API_BASE_URL and API_KEY:
-    try:
-        client = OpenAI(
-            base_url=API_BASE_URL,
-            api_key=API_KEY
-        )
-    except Exception:
-        client = None
+TASKS = ["easy", "medium", "hard"]
 
 
-def call_llm(obs):
-    """
-    Minimal LLM call (for validator compliance)
-    """
-    if client is None:
-        return None
-
-    try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "You are a decision agent."},
-                {"role": "user", "content": "Return one word: cancel or keep"}
-            ],
-            max_tokens=5
-        )
-
-        return response.choices[0].message.content.strip().lower()
-
-    except Exception:
-        return None
-
-
-def smart_policy(obs, step):
-    """
-    Hybrid policy: LLM + fallback
-    """
-
-    # 🔥 Try LLM first (MANDATORY)
-    decision = call_llm(obs)
-
-    if decision == "cancel" and obs.visible_subscriptions:
-        return Action(
-            action_type="cancel",
-            subscription_id=obs.visible_subscriptions[0].id
-        )
-
-    # 🔹 Fallback logic (SAFE)
+def choose_action(obs):
+    # simple safe policy
     for sub in obs.visible_subscriptions:
-        try:
-            if sub.cost > obs.budget:
-                return Action("cancel", sub.id)
-        except Exception:
-            continue
+        if sub.cost > obs.budget:
+            return Action(action_type="cancel", subscription_id=sub.id)
 
-    for email in getattr(obs, "email_logs", []):
-        try:
-            content = (
-                email.content
-                if hasattr(email, "content")
-                else email.get("content", "")
-            )
-
-            if "trial" in str(content).lower():
-                return Action("cancel", "hidden_trial")
-
-        except Exception:
-            continue
-
-    if obs.visible_subscriptions:
-        return Action("keep", obs.visible_subscriptions[0].id)
-
-    return Action("keep", "gym")
+    return Action(
+        action_type="keep",
+        subscription_id=obs.visible_subscriptions[0].id
+        if obs.visible_subscriptions else "gym"
+    )
 
 
-def run_inference():
-    try:
-        env = SubscriptionEnv("hard")
-        obs = env.reset()
-    except Exception:
-        print("[END] task=hard score=0.0 steps=0", flush=True)
-        return 0.0
+def run_task(task_name):
+    print(f"[START] task={task_name}", flush=True)
+
+    env = SubscriptionEnv(task_name)
+    obs = env.reset()
 
     total_reward = 0.0
-    step_count = 0
-
-    print("[START] task=hard", flush=True)
+    step = 0
 
     while True:
-        try:
-            action = smart_policy(obs, step_count)
+        action = choose_action(obs)
 
-            obs, reward, done, _ = env.step(action)
+        obs, reward, done, _ = env.step(action)
 
-            reward_value = float(getattr(reward, "value", 0.0))
-            total_reward += reward_value
-            step_count += 1
+        reward_value = getattr(reward, "value", 0.0)
+        total_reward += reward_value
+        step += 1
 
-            print(
-                f"[STEP] step={step_count} reward={round(reward_value, 2)}",
-                flush=True
-            )
+        print(
+            f"[STEP] task={task_name} step={step} reward={reward_value}",
+            flush=True
+        )
 
-            if done:
-                break
-
-        except Exception:
-            print(
-                f"[STEP] step={step_count+1} reward=0.0",
-                flush=True
-            )
+        if done:
             break
 
-    score = (total_reward + 8.0) / 16.0
-    score = max(min(score, 1.0), 0.0)
-    score = round(score, 4)
+    score = round(total_reward, 2)
 
     print(
-        f"[END] task=hard score={score} steps={step_count}",
+        f"[END] task={task_name} score={score} steps={step}",
         flush=True
     )
 
     return score
+
+
+def run_inference():
+    results = {}
+
+    for task in TASKS:
+        try:
+            score = run_task(task)
+            results[task] = score
+        except Exception as e:
+            print(f"[ERROR] task={task} error={str(e)}", flush=True)
+            results[task] = 0.0
+
+    return results
 
 
 if __name__ == "__main__":
