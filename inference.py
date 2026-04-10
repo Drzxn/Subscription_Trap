@@ -43,28 +43,37 @@ def smart_policy(obs):
 def run_inference():
     print("STARTUP: Initializing agent")
 
-    env = SubscriptionEnv()
-    obs = env.reset()
+    try:
+        env = SubscriptionEnv()
+        obs = env.reset()
+    except Exception:
+        print("END: failed to initialize")
+        return 0.0
 
     total_reward = 0.0
     step_count = 0
 
     while True:
-        action = smart_policy(obs)
+        try:
+            action = smart_policy(obs)
 
-        obs, reward, done, _ = env.step(action)
+            obs, reward, done, _ = env.step(action)
 
-        reward_value = getattr(reward, "value", 0.0)
-        total_reward += reward_value
-        step_count += 1
+            reward_value = float(getattr(reward, "value", 0.0))
+            total_reward += reward_value
+            step_count += 1
 
-        print(
-            f"STEP: step={step_count}, action={action.action_type}, "
-            f"sub={action.subscription_id}, reward={reward_value}"
-        )
+            print(
+                f"STEP: step={step_count}, action={action.action_type}, "
+                f"sub={action.subscription_id}, reward={reward_value}"
+            )
 
-        if done:
-            break
+            if done:
+                break
+
+        except Exception as e:
+            print(f"ERROR: {str(e)}")
+            return 0.0  # 🔥 NEVER CRASH
 
     print(
         f"END: total_steps={step_count}, total_reward={round(total_reward, 2)}"
