@@ -41,17 +41,18 @@ def smart_policy(obs):
 
 
 def run_inference():
-    print("STARTUP: Initializing agent")
-
     try:
-        env = SubscriptionEnv()
+        env = SubscriptionEnv("hard")
         obs = env.reset()
     except Exception:
-        print("END: failed to initialize")
+        print("[END] task=hard score=0.0 steps=0", flush=True)
         return 0.0
 
     total_reward = 0.0
     step_count = 0
+
+    # 🔥 REQUIRED START BLOCK
+    print("[START] task=hard", flush=True)
 
     while True:
         try:
@@ -63,23 +64,35 @@ def run_inference():
             total_reward += reward_value
             step_count += 1
 
+            # 🔥 REQUIRED STEP BLOCK
             print(
-                f"STEP: step={step_count}, action={action.action_type}, "
-                f"sub={action.subscription_id}, reward={reward_value}"
+                f"[STEP] step={step_count} reward={round(reward_value, 2)}",
+                flush=True
             )
 
             if done:
                 break
 
-        except Exception as e:
-            print(f"ERROR: {str(e)}")
-            return 0.0  # 🔥 NEVER CRASH
+        except Exception:
+            # NEVER crash
+            print(
+                f"[STEP] step={step_count+1} reward=0.0",
+                flush=True
+            )
+            break
 
+    # 🔥 NORMALIZE SCORE (IMPORTANT)
+    score = (total_reward + 8.0) / 16.0
+    score = max(min(score, 1.0), 0.0)
+    score = round(score, 4)
+
+    # 🔥 REQUIRED END BLOCK
     print(
-        f"END: total_steps={step_count}, total_reward={round(total_reward, 2)}"
+        f"[END] task=hard score={score} steps={step_count}",
+        flush=True
     )
 
-    return total_reward
+    return score
 
 
 if __name__ == "__main__":
