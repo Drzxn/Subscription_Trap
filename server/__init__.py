@@ -6,7 +6,7 @@ Server package for Subscription Trap OpenEnv.
 Exposes FastAPI app and entrypoint.
 """
 
-from .app import app, main
+from .app import app
 
 __all__ = [
     "app",
