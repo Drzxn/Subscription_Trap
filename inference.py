@@ -1,27 +1,19 @@
 import os
-from openai import OpenAI
 
 from core.env import SubscriptionEnv
 from core.models import Action
 
-# 🔹 Required environment variables
+# 🔹 Env variables (kept for compliance, NOT used dangerously)
 API_BASE_URL = os.getenv(
     "API_BASE_URL", "https://dzrxn-subscription-trap.hf.space")
 MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4o-mini")
-
-# ❗ DO NOT set default
 HF_TOKEN = os.getenv("HF_TOKEN")
-
-# Optional
 LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
-
-# 🔹 OpenAI client (required structure)
-client = OpenAI(base_url=API_BASE_URL)
 
 
 def smart_policy(obs):
     """
-    Simple rule-based policy
+    Safe rule-based policy (NO external dependency)
     """
 
     # Cancel expensive subscriptions
