@@ -51,11 +51,10 @@ def root():
 
 
 # 🔹 Reset
-@app.get("/reset")
+@app.api_route("/reset", methods=["GET", "POST"])
 def reset():
     try:
         obs = env.reset()
-
         return {
             "observation": serialize(obs),
             "reward": {"value": 0.0, "reason": "reset"},
@@ -66,7 +65,6 @@ def reset():
                 "note": "some subscriptions may be hidden"
             }
         }
-
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
