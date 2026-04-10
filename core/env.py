@@ -7,7 +7,7 @@ from core.grader import evaluate_step
 
 
 class SubscriptionEnv:
-    def __init__(self, task_name: str = "hard"):
+    def __init__(self, task_name: str = "easy"):
         self.task_name = task_name
         self.reset()
 

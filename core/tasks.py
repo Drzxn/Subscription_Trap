@@ -1,15 +1,16 @@
 from typing import Dict, List
-import random
 
 from core.models import Subscription, BankLog, EmailLog
 
 
 def get_task(level: str = "hard") -> Dict:
     """
-    Generate task scenarios with increasing difficulty.
+    Deterministic task generator (REQUIRED for OpenEnv validation)
     """
 
-    # 🟢 EASY — no hidden traps
+    # =========================
+    # 🟢 EASY TASK
+    # =========================
     if level == "easy":
         subs = [
             Subscription(
@@ -35,7 +36,9 @@ def get_task(level: str = "hard") -> Dict:
             "spotify": "keep"
         }
 
-    # 🟡 MEDIUM — trial-based traps
+    # =========================
+    # 🟡 MEDIUM TASK
+    # =========================
     elif level == "medium":
         subs = [
             Subscription(
@@ -61,8 +64,10 @@ def get_task(level: str = "hard") -> Dict:
             "trial_app": "cancel"
         }
 
-    # 🔴 HARD — hidden + misleading signals
-    else:
+    # =========================
+    # 🔴 HARD TASK
+    # =========================
+    elif level == "hard":
         subs = [
             Subscription(
                 id="gym",
@@ -96,10 +101,13 @@ def get_task(level: str = "hard") -> Dict:
             "fake_free": "keep"
         }
 
-    # 🔄 Add slight randomness (important for RL)
-    random.shuffle(subs)
+    else:
+        # 🔥 HARD fallback (REQUIRED)
+        return get_task("hard")
 
-    # 💳 Bank logs (derived from subscriptions)
+    # =========================
+    # 💳 BANK LOGS
+    # =========================
     bank_logs: List[BankLog] = []
     for sub in subs:
         if sub.cost > 0:
@@ -117,7 +125,9 @@ def get_task(level: str = "hard") -> Dict:
                 )
             )
 
-    # 📧 Email logs (weak signals / distractions)
+    # =========================
+    # 📧 EMAIL LOGS
+    # =========================
     email_logs: List[EmailLog] = [
         EmailLog(
             subject="Welcome!",
@@ -133,8 +143,11 @@ def get_task(level: str = "hard") -> Dict:
         ),
     ]
 
-    # 🎯 Budget constraint (forces decisions)
-    budget = sum([s.cost for s in subs]) * 0.6
+    # =========================
+    # 🎯 BUDGET (deterministic)
+    # =========================
+    total_cost = sum([s.cost for s in subs])
+    budget = round(total_cost * 0.6, 2)
 
     return {
         "subscriptions": subs,
