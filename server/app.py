@@ -1,6 +1,5 @@
 from fastapi import FastAPI, HTTPException
 from typing import Any
-import uvicorn
 
 from core.env import SubscriptionEnv
 from core.baseline import run_baseline
@@ -8,15 +7,14 @@ from core.models import Action
 
 app = FastAPI(
     title="Subscription Trap OpenEnv",
-    version="1.0.0",
-    description="RL environment for detecting hidden subscription traps"
+    version="1.0.0"
 )
 
-# Initialize environment
-env = SubscriptionEnv()
+# 🔥 GLOBAL ENV (default task)
+env = SubscriptionEnv("easy")
 
 
-# 🔹 Safe serialization
+# 🔹 Safe serializer (handles Pydantic)
 def serialize(obj: Any):
     if obj is None:
         return None
@@ -27,8 +25,8 @@ def serialize(obj: Any):
     if hasattr(obj, "dict"):
         return obj.dict()
 
-    if isinstance(obj, (list, tuple)):
-        return [serialize(o) for o in obj]
+    if isinstance(obj, list):
+        return [serialize(x) for x in obj]
 
     if isinstance(obj, dict):
         return {k: serialize(v) for k, v in obj.items()}
@@ -36,37 +34,44 @@ def serialize(obj: Any):
     return obj
 
 
-# 🔹 Health
+# 🔹 HEALTH
 @app.get("/health")
 def health():
     return {"status": "ok"}
 
 
-# 🔹 Root
+# 🔹 ROOT
 @app.get("/")
 def root():
-    return {
-        "message": "Subscription Trap Environment Running",
-        "version": "1.0.0"
-    }
+    return {"message": "Subscription Trap Running"}
 
 
-# 🔹 Reset (MUST support POST)
+# 🔥 RESET (CRITICAL FIX FOR VALIDATOR)
 @app.api_route("/reset", methods=["GET", "POST"])
-def reset():
+def reset(task: str = "easy"):
     try:
+        global env
+
+        # ✅ MULTI-TASK SWITCHING (VERY IMPORTANT)
+        env = SubscriptionEnv(task)
+
         obs = env.reset()
+
         return {
             "observation": serialize(obs),
             "reward": {"value": 0.0, "reason": "reset"},
             "done": False,
-            "info": {}
+            "info": {
+                "task": task,
+                "month": 0
+            }
         }
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# 🔹 Step
+# 🔹 STEP
 @app.post("/step")
 def step(action: Action):
     try:
@@ -75,7 +80,7 @@ def step(action: Action):
         return {
             "observation": serialize(obs),
             "reward": {
-                "value": round(float(getattr(reward, "value", 0.0)), 2),
+                "value": float(getattr(reward, "value", 0.0)),
                 "reason": getattr(reward, "reason", "")
             },
             "done": bool(done),
@@ -86,33 +91,27 @@ def step(action: Action):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# 🔹 State
-@app.get("/state")
-def state():
-    try:
-        return {"state": serialize(env.state)}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# 🔹 Baseline
+# 🔹 BASELINE
 @app.get("/baseline")
 def baseline():
     try:
         score = run_baseline()
+
         return {
-            "baseline_score": round(float(score), 4),
+            "baseline_score": float(score),
             "range": "0.0 - 1.0"
         }
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# 🔹 Grader
+# 🔹 GRADER SNAPSHOT
 @app.get("/grader")
 def grader():
     try:
         subs = env.state or []
+
         active = [s.id for s in subs if getattr(s, "active", False)]
         total = len(subs) if subs else 1
 
@@ -121,11 +120,12 @@ def grader():
             "total_active": len(active),
             "score_hint": round(1.0 - (len(active) / total), 4)
         }
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# 🔹 Tasks
+# 🔹 TASKS (CRITICAL FOR VALIDATOR)
 @app.get("/tasks")
 def tasks():
     return {
@@ -141,23 +141,11 @@ def tasks():
     }
 
 
-# =========================
-# 🔥 CRITICAL FIX STARTS HERE
-# =========================
-
+# 🔥 REQUIRED FOR DOCKER VALIDATOR
 def main():
-    """
-    REQUIRED for OpenEnv validation.
-    MUST start the FastAPI server.
-    """
-    uvicorn.run(
-        "server.app:app",
-        host="0.0.0.0",
-        port=7860,
-        reload=False
-    )
+    import uvicorn
+    uvicorn.run("server.app:app", host="0.0.0.0", port=7860)
 
 
-# REQUIRED ENTRYPOINT
 if __name__ == "__main__":
     main()
